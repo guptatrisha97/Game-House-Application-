@@ -21,8 +21,18 @@ class ClientMain:
         while authenticationMessage != "1001 Authentication successful":
             authenticationMessage = self.authenticate()
 
+        commandRun = self.command()
+        if commandRun == "3011 Wait":
+            try:
+                message = self.clientSocket.recv(1000).decode()
+                print(message)
+            except socket.error as err:
+                print("Recv error: ", err)
+                sys.exit(1)
+
         while True:
             commandRun = self.command()
+
 
     def command(self):
         cd = input("Enter command: ")
@@ -44,7 +54,7 @@ class ClientMain:
                 sys.exit(1)
             print(message)
             return message
-        elif cd == "/exit":#to be completed, dummy for now
+        elif cd == "/exit": # to be completed, dummy for now
             print("4001 Bye Bye")
             print("Client Ends")
             sys.exit(1)

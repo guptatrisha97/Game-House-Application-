@@ -1,18 +1,16 @@
 import socket
 import sys
 import threading
-import time
 
-result_available = threading.Event()
+gameStates = {}
+usersInfo = {}
+numberOfRooms = 10
 
 class ServerThread(threading.Thread):
-    def __init__(self, client, usersInfo, gameHall):
+    def __init__(self, client):
         threading.Thread.__init__(self)
         self.connectionSocket, self.addr = client
-        self.usersInfo = usersInfo
-        self.gameHall = gameHall
         print("In Constructor ", self.addr)
-        print("10", gameHall)
 
     def run(self):
         while True:
@@ -22,51 +20,45 @@ class ServerThread(threading.Thread):
                 print("Recv error: ", err)
                 sys.exit(1)
             print(message)
+
             if message.startswith("/login"):
                 result = self.authentication(message)
                 self.connectionSocket.send(result.encode("ascii"))
             elif message.startswith("/list"):
-                result = self.gameHall
-                self.connectionSocket.send((" ".join(map(str, result))).encode("ascii"))
+                result = ""
+                for i in range (0, numberOfRooms):
+                    result = result + str(len(gameStates[i])) + " "
+                self.connectionSocket.send(result.encode("ascii"))
             elif message.startswith("/enter"):
-                room = int(message[7])-1
-                print(room)
-                if room <= 10:
-                    if self.gameHall[room] == 0:
-                        #increase the number of players in the room by 1
-                        self.gameHall[room] = self.gameHall[room]+1
-                        #debugging
-                        print(self.gameHall[room])
-                        result = "3011 Wait"
-                        #send wait msg
-                        self.connectionSocket.send(result.encode("ascii"))
-                        #make the thread wait until another player joins in for the game to start
-                        while(self.gameHall[room]!=2):
-                            #debug
-                            print("Thread waits")
-                            result_available.wait()
-                            #player available now so 
-                        result_available.set()
-                        print(self.gameHall[room])
-                        result = "3012 Game started. Please guess true or false"
-                        self.connectionSocket.send(result.encode("ascii"))
-                    elif self.gameHall[room] == 2:
-                        result = "3013 The room is full"
-                        print(self.gameHall[room])
-                        self.connectionSocket.send(result.encode("ascii"))
-                    else:
-                        result = "3012 Game started. Please guess true or false"
-                        self.gameHall[room] = self.gameHall[room]+1
-                        print(self.gameHall[room])
-                        self.connectionSocket.send(result.encode("ascii"))
-                else:
-                    result = "Invalid room"
-                    self.connectionSocket.send(result.encode("ascii"))
+                result = self.enterRoom(message)
+                self.connectionSocket.send(result.encode("ascii"))
+
         self.connectionSocket.close()
+
+    def enterRoom(self, message):
+        # Check if invalid char or nothing is inputted
+        room = message.split(" ")[1]
+        print(room)
+        if room.isnumeric() and int(room) <= numberOfRooms:
+            if len(gameStates[room]) == 0:
+                # increase the number of players in the room by 1
+                gameStates[room].append(self)
+                # debugging
+                result = "3011 Wait"
+                print(result)
+            elif len(gameStates[room]) == 1:
+                result = "3012 Game started. Please guess true or false"
+                gameStates[room][0].connectionSocket.send(result.encode("ascii"))
+                gameStates[room].append(self)
+            else:
+                result = "3013 The room is full"
+        else:
+            result = "Invalid room number"
+        return result
 
     def authentication(self, message):
         params = message.split(" ")
-        if params[1] in self.usersInfo and self.usersInfo[params[1]] == params[2]:
+        if params[1] in usersInfo and usersInfo[params[1]] == params[2]:
             return "1001 Authentication successful"
         else:
             return "1002 Authentication failed"
@@ -76,8 +68,6 @@ class ServerMain:
     def __init__(self, argv):
         self.port = int(argv[1])
         self.usersInfoPath = argv[2]
-        self.gameHall = []
-        self.gameHall = [0] * 10
 
     def server_run(self):
         serverPort = self.port
@@ -89,7 +79,6 @@ class ServerMain:
 
         lines = usersInfoFile.read()
         # Dictionary to store the username and passwords
-        usersInfo = {}
 
         for line in lines.split("\n"):
             username, password = line.split(":")
@@ -97,9 +86,13 @@ class ServerMain:
 
         print(usersInfo)
 
+        # Initializing the gameStates array, assuming 10 rooms atm
+        # THe gameStates array stores the instances of the users in a particular room
+        for i in range(0, numberOfRooms):
+            gameStates[i] = []
+
         # create socket and bind
         serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
         try:
             serverSocket.bind(("localhost", serverPort))
         except socket.error as err:
@@ -118,7 +111,7 @@ class ServerMain:
                 print("Socket accept error: ", msg)
                 sys.exit(1)
 
-            newthd = ServerThread(client, usersInfo, self.gameHall)
+            newthd = ServerThread(client)
             newthd.start()
 
         serverSocket.close()
