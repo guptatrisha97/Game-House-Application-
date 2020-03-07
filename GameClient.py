@@ -22,8 +22,32 @@ class ClientMain:
             authenticationMessage = self.authenticate()
 
         while True:
-            pass
+            commandRun = self.command()
 
+    def command(self):
+        cd = input("Enter command: ")
+        if cd == "/list":
+            self.clientSocket.send(("/list").encode("ascii"))
+            try:
+                gameHall = self.clientSocket.recv(1000).decode()
+            except socket.error as err:
+                print("Recv error: ", err)
+                sys.exit(1)
+            print("3001", "10", gameHall)
+            return gameHall
+        elif cd.startswith("/enter"):
+            self.clientSocket.send(cd.encode("ascii"))
+            try:
+                message = self.clientSocket.recv(1000).decode()
+            except socket.error as err:
+                print("Recv error: ", err)
+                sys.exit(1)
+            print(message)
+            return message
+        elif cd == "/exit":#to be completed, dummy for now
+            print("4001 Bye Bye")
+            print("Client Ends")
+            sys.exit(1)
 
     def authenticate(self):
         username = input("Please input your user name: ")
