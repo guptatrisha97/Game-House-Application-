@@ -39,7 +39,8 @@ class ServerThread(threading.Thread):
         # Check if invalid char or nothing is inputted
         room = message.split(" ")[1]
         print(room)
-        if room.isnumeric() and int(room) <= numberOfRooms:
+        if room.isnumeric() and 1 <= int(room) <= numberOfRooms:
+            room = int(room)-1
             if len(gameStates[room]) == 0:
                 # increase the number of players in the room by 1
                 gameStates[room].append(self)

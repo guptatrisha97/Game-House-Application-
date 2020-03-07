@@ -21,17 +21,15 @@ class ClientMain:
         while authenticationMessage != "1001 Authentication successful":
             authenticationMessage = self.authenticate()
 
-        commandRun = self.command()
-        if commandRun == "3011 Wait":
-            try:
-                message = self.clientSocket.recv(1000).decode()
-                print(message)
-            except socket.error as err:
-                print("Recv error: ", err)
-                sys.exit(1)
-
         while True:
             commandRun = self.command()
+            if commandRun == "3011 Wait":
+                try:
+                    message = self.clientSocket.recv(1000).decode()
+                    print(message)
+                except socket.error as err:
+                    print("Recv error: ", err)
+                    sys.exit(1)
 
 
     def command(self):
