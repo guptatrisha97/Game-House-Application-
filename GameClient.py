@@ -30,6 +30,13 @@ class ClientMain:
                 except socket.error as err:
                     print("Recv error: ", err)
                     sys.exit(1)
+            if commandRun == "Wait for other player to guess":
+                try:
+                    message = self.clientSocket.recv(1000).decode()
+                    print(message)
+                except socket.error as err:
+                    print("Recv error: ", err)
+                    sys.exit(1)
 
 
     def command(self):
@@ -52,10 +59,21 @@ class ClientMain:
                 sys.exit(1)
             print(message)
             return message
+        elif cd.startswith("/guess"):
+            self.clientSocket.send(cd.encode("ascii"))
+            try:
+                message = self.clientSocket.recv(1000).decode()
+            except socket.error as err:
+                print("Recv error: ", err)
+                sys.exit(1)
+            print(message)
+            return message
         elif cd == "/exit": # to be completed, dummy for now
             print("4001 Bye Bye")
             print("Client Ends")
             sys.exit(1)
+        else:
+            print("4002 Unrecognized message")
 
     def authenticate(self):
         username = input("Please input your user name: ")

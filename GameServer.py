@@ -1,10 +1,12 @@
 import socket
 import sys
 import threading
+import random
 
 gameStates = {}
 usersInfo = {}
 numberOfRooms = 10
+playerGuess = []*2
 
 class ServerThread(threading.Thread):
     def __init__(self, client):
@@ -32,8 +34,40 @@ class ServerThread(threading.Thread):
             elif message.startswith("/enter"):
                 result = self.enterRoom(message)
                 self.connectionSocket.send(result.encode("ascii"))
+            elif message.startswith("/guess"):
+                self.getStatus(message)
 
         self.connectionSocket.close()
+
+    def getStatus(self, message):
+        guess = message.split(" ")[1]
+        print(guess)
+        playerGuess.append(guess)
+        if(len(playerGuess)!=2):
+            result="Wait for other player to guess"
+            #room number is hardcoded to 2 because it needs to be incorporated within enter so as to receive the current room
+            gameStates[1][0].connectionSocket.send(result.encode("ascii"))
+        else:
+            print(playerGuess[0], " ", playerGuess[1])
+            result1 = "3021 You are the winner"
+            result2 = "3022 You lost this game"
+            if playerGuess[0]==playerGuess[1]:
+                result = "3023 The result is a tie"
+                gameStates[1][0].connectionSocket.send(result.encode("ascii"))
+                gameStates[1][1].connectionSocket.send(result.encode("ascii"))
+            else:
+                #generate random boolean value which is the answer
+                random_bit = random.getrandbits(1)
+                answer = bool(random_bit)
+                print ("answer is", answer)
+                if str(guess).casefold() == str(answer).casefold():
+                    print("guess", str(guess).casefold(), "ans",str(answer).casefold())
+                    gameStates[1][1].connectionSocket.send(result2.encode("ascii"))
+                    gameStates[1][0].connectionSocket.send(result1.encode("ascii"))
+                elif str(guess).casefold() != str(answer).casefold():
+                    print("guess is", str(guess).casefold(), "ans is",str(answer).casefold())
+                    gameStates[1][1].connectionSocket.send(result1.encode("ascii"))
+                    gameStates[1][0].connectionSocket.send(result2.encode("ascii"))
 
     def enterRoom(self, message):
         # Check if invalid char or nothing is inputted
@@ -92,6 +126,7 @@ class ServerMain:
         for i in range(0, numberOfRooms):
             gameStates[i] = []
 
+        print("initial guess list", playerGuess)
         # create socket and bind
         serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
