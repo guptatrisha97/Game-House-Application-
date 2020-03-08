@@ -37,6 +37,12 @@ class ClientMain:
                 except socket.error as err:
                     print("Recv error: ", err)
                     sys.exit(1)
+            #if server shut down, disconnect the client also
+            if len(commandRun) == 0:
+                print("Server connection lost...Disconnecting!")
+                sys.exit(1)
+
+
 
 
     def command(self):

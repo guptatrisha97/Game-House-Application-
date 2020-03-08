@@ -15,15 +15,40 @@ class ServerThread(threading.Thread):
         # Reset roomNumber, playerGuess and GameState once the game is over
         # What if player guesses outside the room
         self.roomNumber = -1
+        #self.lock = allocate_lock()
         print("In Constructor ", self.addr)
 
     def run(self):
         while True:
             try:
                 message = self.connectionSocket.recv(1000).decode()
+                # when a client disconnects
+                if not message:
+                    currentPlayer = self
+                    # notify other player
+                    if currentPlayer == gameStates[self.roomNumber][0]:
+                        otherPlayer = gameStates[self.roomNumber][1]
+                    else:
+                        otherPlayer = gameStates[self.roomNumber][0]
+                    result = "3021 You are the winner"
+                    otherPlayer.connectionSocket.send(result.encode("ascii"))
+                    # reset the room
+                    print("Client has disconnected")  # if no data is received, then disconnect and close the port
+                    gameStates[self.roomNumber] = []
+                    playerGuess[self.roomNumber] = []
+                    self.roomNumber = -1
+                    break
             except socket.error as err:
-                print("Recv error: ", err)
-                sys.exit(1)
+                if isinstance(err.args, tuple):
+                    print("Recv error number: %d " % err[0])
+                    if err[0] == errno.EPIPE:
+                        print ("Detected remote disconnect")
+                        sys.exit(1)
+                    else:
+                        print ("Socket error 1")
+                else:
+                    print ("Socket error 2 " + err.message)
+                    sys.exit(1)
             print(message)
 
             # The current player's result will always be sent from here
