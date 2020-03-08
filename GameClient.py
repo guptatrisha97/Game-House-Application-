@@ -50,16 +50,7 @@ class ClientMain:
                 sys.exit(1)
             print("3001", "10", gameHall)
             return gameHall
-        elif cd.startswith("/enter"):
-            self.clientSocket.send(cd.encode("ascii"))
-            try:
-                message = self.clientSocket.recv(1000).decode()
-            except socket.error as err:
-                print("Recv error: ", err)
-                sys.exit(1)
-            print(message)
-            return message
-        elif cd.startswith("/guess"):
+        elif cd.startswith("/enter") or cd.startswith("/guess"):
             self.clientSocket.send(cd.encode("ascii"))
             try:
                 message = self.clientSocket.recv(1000).decode()

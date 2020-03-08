@@ -6,12 +6,15 @@ import random
 gameStates = {}
 usersInfo = {}
 numberOfRooms = 10
-playerGuess = []*2
+playerGuess = {}
 
 class ServerThread(threading.Thread):
     def __init__(self, client):
         threading.Thread.__init__(self)
         self.connectionSocket, self.addr = client
+        # Reset roomNumber, playerGuess and GameState once the game is over
+        # What if player guesses outside the room
+        self.roomNumber = -1
         print("In Constructor ", self.addr)
 
     def run(self):
@@ -23,6 +26,7 @@ class ServerThread(threading.Thread):
                 sys.exit(1)
             print(message)
 
+            # The current player's result will always be sent from here
             if message.startswith("/login"):
                 result = self.authentication(message)
                 self.connectionSocket.send(result.encode("ascii"))
@@ -35,49 +39,78 @@ class ServerThread(threading.Thread):
                 result = self.enterRoom(message)
                 self.connectionSocket.send(result.encode("ascii"))
             elif message.startswith("/guess"):
-                self.getStatus(message)
+                result = self.getStatus(message)
+                self.connectionSocket.send(result.encode("ascii"))
 
         self.connectionSocket.close()
 
     def getStatus(self, message):
-        guess = message.split(" ")[1]
-        print(guess)
-        playerGuess.append(guess)
-        if(len(playerGuess)!=2):
-            result="Wait for other player to guess"
-            #room number is hardcoded to 2 because it needs to be incorporated within enter so as to receive the current room
-            gameStates[1][0].connectionSocket.send(result.encode("ascii"))
+        # What if the second user gets disconnected after 1st user sends the message
+        currentGuess = message.split(" ")[1]
+        resultWon = "3021 You are the winner"
+        resultLost = "3022 You lost this game"
+        resultTie = "3023 The result is a tie"
+
+        # Player is not currently in a room but has guessed a value
+        if self.roomNumber == -1:
+            return "4002 Unrecognized message"
+
+        # If the guesses are not valid
+        if currentGuess != "true" and currentGuess != "false":
+            return "4002 Unrecognized message"
+
+        print(currentGuess)
+        playerGuess[self.roomNumber].append(currentGuess)
+
+        # If only 1 player has guessed till now
+        if len(playerGuess[self.roomNumber]) != 2:
+            return "Wait for other player to guess"
+
+        currentPlayer = self
+        if currentPlayer == gameStates[self.roomNumber][0]:
+            otherPlayer = gameStates[self.roomNumber][1]
         else:
-            print(playerGuess[0], " ", playerGuess[1])
-            result1 = "3021 You are the winner"
-            result2 = "3022 You lost this game"
-            if playerGuess[0]==playerGuess[1]:
-                result = "3023 The result is a tie"
-                gameStates[1][0].connectionSocket.send(result.encode("ascii"))
-                gameStates[1][1].connectionSocket.send(result.encode("ascii"))
+            otherPlayer = gameStates[self.roomNumber][0]
+        print(playerGuess[self.roomNumber][0], " ", playerGuess[self.roomNumber][1])
+
+        # If the guesses are the same
+        if playerGuess[self.roomNumber][0] == playerGuess[self.roomNumber][1]:
+            result = resultTie
+            otherPlayer.roomNumber = -1
+            otherPlayer.connectionSocket.send(result.encode("ascii"))
+        else:
+            # generate random boolean value which is the answer
+            random_bit = random.getrandbits(1)
+            answer = bool(random_bit)
+            print("answer is", answer)
+            # If the current guess is the answer
+            if str(currentGuess).casefold() == str(answer).casefold():
+                print("guess", str(currentGuess).casefold(), "ans",str(answer).casefold())
+                result = resultWon
+                otherPlayer.roomNumber = -1
+                otherPlayer.connectionSocket.send(resultLost.encode("ascii"))
             else:
-                #generate random boolean value which is the answer
-                random_bit = random.getrandbits(1)
-                answer = bool(random_bit)
-                print ("answer is", answer)
-                if str(guess).casefold() == str(answer).casefold():
-                    print("guess", str(guess).casefold(), "ans",str(answer).casefold())
-                    gameStates[1][1].connectionSocket.send(result2.encode("ascii"))
-                    gameStates[1][0].connectionSocket.send(result1.encode("ascii"))
-                elif str(guess).casefold() != str(answer).casefold():
-                    print("guess is", str(guess).casefold(), "ans is",str(answer).casefold())
-                    gameStates[1][1].connectionSocket.send(result1.encode("ascii"))
-                    gameStates[1][0].connectionSocket.send(result2.encode("ascii"))
+                print("guess is", str(currentGuess).casefold(), "ans is",str(answer).casefold())
+                result = resultLost
+                otherPlayer.roomNumber = -1
+                otherPlayer.connectionSocket.send(resultWon.encode("ascii"))
+
+        # Resetting the values and returning the result
+        # The other player room number is reset earlier to prevent race conditions
+        gameStates[self.roomNumber] = []
+        playerGuess[self.roomNumber] = []
+        self.roomNumber = -1
+        return result
 
     def enterRoom(self, message):
         # Check if invalid char or nothing is inputted
         room = message.split(" ")[1]
-        print(room)
         if room.isnumeric() and 1 <= int(room) <= numberOfRooms:
             room = int(room)-1
             if len(gameStates[room]) == 0:
                 # increase the number of players in the room by 1
                 gameStates[room].append(self)
+                self.roomNumber = room
                 # debugging
                 result = "3011 Wait"
                 print(result)
@@ -85,10 +118,12 @@ class ServerThread(threading.Thread):
                 result = "3012 Game started. Please guess true or false"
                 gameStates[room][0].connectionSocket.send(result.encode("ascii"))
                 gameStates[room].append(self)
+                self.roomNumber = room
             else:
                 result = "3013 The room is full"
         else:
-            result = "Invalid room number"
+            # Should it be invalid room number or unrecognised message
+            result = "4002 Unrecognized message"
         return result
 
     def authentication(self, message):
@@ -113,7 +148,6 @@ class ServerMain:
             sys.exit(1)
 
         lines = usersInfoFile.read()
-        # Dictionary to store the username and passwords
 
         for line in lines.split("\n"):
             username, password = line.split(":")
@@ -125,6 +159,7 @@ class ServerMain:
         # THe gameStates array stores the instances of the users in a particular room
         for i in range(0, numberOfRooms):
             gameStates[i] = []
+            playerGuess[i] = []
 
         print("initial guess list", playerGuess)
         # create socket and bind
