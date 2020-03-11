@@ -19,9 +19,14 @@ class ClientMain:
         print("Connection established. My socket address is", self.clientSocket.getsockname())
         authenticationMessage = self.authenticate()
         while authenticationMessage != "1001 Authentication successful":
+            # If server disconnects before authentications
+            if len(authenticationMessage) == 0:
+                print("Server connection lost...Disconnecting!")
+                sys.exit(1)
             authenticationMessage = self.authenticate()
 
         while True:
+            # What about server disconnect before authentication?
             commandRun = self.command()
             if commandRun == "3011 Wait":
                 try:
@@ -37,12 +42,10 @@ class ClientMain:
                 except socket.error as err:
                     print("Recv error: ", err)
                     sys.exit(1)
-            #if server shut down, disconnect the client also
+            # if server shut down, disconnect the client also
             if len(commandRun) == 0:
                 print("Server connection lost...Disconnecting!")
                 sys.exit(1)
-
-
 
 
     def command(self):
@@ -54,7 +57,7 @@ class ClientMain:
             except socket.error as err:
                 print("Recv error: ", err)
                 sys.exit(1)
-            print("3001", "10", gameHall)
+            print(gameHall)
             return gameHall
         elif cd.startswith("/enter") or cd.startswith("/guess"):
             self.clientSocket.send(cd.encode("ascii"))
@@ -65,12 +68,13 @@ class ClientMain:
                 sys.exit(1)
             print(message)
             return message
-        elif cd == "/exit": # to be completed, dummy for now
+        elif cd == "/exit":
             print("4001 Bye Bye")
             print("Client Ends")
             sys.exit(1)
         else:
             print("4002 Unrecognized message")
+            return "4002 Unrecognized message"
 
     def authenticate(self):
         username = input("Please input your user name: ")
