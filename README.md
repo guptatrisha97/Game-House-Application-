@@ -31,4 +31,13 @@ After receiving any of the above messages, the game ends and the states of both 
 /exit - 4001 Bye bye
 Upon receiving the response from the server, the client program closes its socket and then quits.
 Whenever a player exits from the system, the server thread (that handles the user’s connection) updates the room member list, closes the corresponding socket and then ends.
- 
+
+# Exception Handling implemented-
+1. Player A has not made a guess, player B has not made a guess.
+2. Player A has not made a guess, player B has made a guess.
+3. Player A has made a guess, player B has not made a guess.
+4. player A exits abnormally when in the game hall, the server should detect an exception and end the corresponding server thread
+5. If player A exits abnormally when waiting in a game room for the other player to enter, the server should clear the room state before ending the corresponding server thread.
+6. TCP connection may be broken, or a remote end host may suddenly leave the system at any step of the dialog. 
+
+
