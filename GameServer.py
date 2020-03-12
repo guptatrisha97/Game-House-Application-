@@ -30,7 +30,7 @@ class ServerThread(threading.Thread):
         self.roomNumber = -1
         self.otherPlayerDisconnected = False
         self.guessed = False
-        print("In Constructor ", self.addr)
+        # print("In Constructor ", self.addr)
 
     def run(self):
         while True:
@@ -57,7 +57,7 @@ class ServerThread(threading.Thread):
                             otherPlayer.roomNumber = -1
                             otherPlayer.guessed = False
                         # reset the room
-                        print("HI")
+                        # print("HI")
                         gameStates[self.roomNumber] = []
                         playerGuess[self.roomNumber] = []
                         lock.release()
@@ -124,13 +124,13 @@ class ServerThread(threading.Thread):
         if self.roomNumber == -1:
             return "4002 Unrecognized message"
 
-        print(currentGuess)
+        #print(currentGuess)
         playerGuess[self.roomNumber].append(currentGuess)
         self.guessed = True
 
         # If only 1 player has guessed till now
         if len(playerGuess[self.roomNumber]) != 2:
-            return "Wait for other player to guess"
+            return ""
 
         currentPlayer = self
         if currentPlayer == gameStates[self.roomNumber][0]:
@@ -150,12 +150,12 @@ class ServerThread(threading.Thread):
             print("answer is", answer)
             # If the current guess is the answer
             if str(currentGuess).casefold() == str(answer).casefold():
-                print("guess", str(currentGuess).casefold(), "ans",str(answer).casefold())
+                #print("guess", str(currentGuess).casefold(), "ans",str(answer).casefold())
                 result = resultWon
                 otherPlayer.roomNumber = -1
                 otherPlayer.connectionSocket.send(resultLost.encode("ascii"))
             else:
-                print("guess is", str(currentGuess).casefold(), "ans is",str(answer).casefold())
+                #print("guess is", str(currentGuess).casefold(), "ans is",str(answer).casefold())
                 result = resultLost
                 otherPlayer.roomNumber = -1
                 otherPlayer.connectionSocket.send(resultWon.encode("ascii"))

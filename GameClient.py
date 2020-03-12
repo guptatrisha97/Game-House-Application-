@@ -26,7 +26,6 @@ class ClientMain:
             authenticationMessage = self.authenticate()
 
         while True:
-            # What about server disconnect before authentication?
             commandRun = self.command()
             if commandRun == "3011 Wait":
                 try:
@@ -35,7 +34,7 @@ class ClientMain:
                 except socket.error as err:
                     print("Recv error: ", err)
                     sys.exit(1)
-            if commandRun == "Wait for other player to guess":
+            if commandRun == "":
                 try:
                     message = self.clientSocket.recv(1000).decode()
                     print(message)
@@ -49,7 +48,7 @@ class ClientMain:
 
 
     def command(self):
-        cd = input("Enter command: ")
+        cd = input("")
         if cd == "/list":
             self.clientSocket.send(("/list").encode("ascii"))
             try:
@@ -69,8 +68,8 @@ class ClientMain:
             print(message)
             return message
         elif cd == "/exit":
-            print("4001 Bye Bye")
-            print("Client Ends")
+            print("4001 Bye bye")
+            print("Client ends")
             sys.exit(1)
         else:
             print("4002 Unrecognized message")
