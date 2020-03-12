@@ -10,18 +10,6 @@ numberOfRooms = 10
 playerGuess = {}
 lock = threading.Lock()
 
-# Assuming that he is not allowed to "list" while in the room - Done
-# Test server shutting down on server side - Not needed
-# Test if thread is getting removed once client disconnects - Done
-# Error 54 - Done
-# Maybe need to change playerGuess coz of locks - Not needed as big critical section
-# Implement locks - Done
-# Test when client guesses and disconnects - Done
-# Thread count not working
-# What if system exits with lock not released? - sys.exit(1)
-# Test exhaustively
-
-
 class ServerThread(threading.Thread):
     def __init__(self, client):
         threading.Thread.__init__(self)
@@ -57,7 +45,6 @@ class ServerThread(threading.Thread):
                             otherPlayer.roomNumber = -1
                             otherPlayer.guessed = False
                         # reset the room
-                        # print("HI")
                         gameStates[self.roomNumber] = []
                         playerGuess[self.roomNumber] = []
                         lock.release()
@@ -80,6 +67,9 @@ class ServerThread(threading.Thread):
             print("Thread count = ", str(len(threading.enumerate())))
 
             # The current player's result will always be sent from here
+            # We are acquiring the lock before any function that modifies the shared variables.
+            # We could reduce the critical section, by acquiring the lock inside the function, but in that case
+            # the complexity would increase without significant performance improvement
             if message.startswith("/login"):
                 result = self.authentication(message)
             elif message.startswith("/list"):
@@ -130,7 +120,7 @@ class ServerThread(threading.Thread):
 
         # If only 1 player has guessed till now
         if len(playerGuess[self.roomNumber]) != 2:
-            return ""
+            return "Wait for other player to guess"
 
         currentPlayer = self
         if currentPlayer == gameStates[self.roomNumber][0]:
@@ -236,6 +226,7 @@ class ServerMain:
             username, password = line.split(":")
             usersInfo[username] = password
 
+        # Stores the usernames and passwords
         print(usersInfo)
 
         # Initializing the gameStates array, assuming 10 rooms
@@ -244,7 +235,7 @@ class ServerMain:
             gameStates[i] = []
             playerGuess[i] = []
 
-        print("initial guess list", playerGuess)
+        # print("initial guess list", playerGuess)
         # create socket and bind
         serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:

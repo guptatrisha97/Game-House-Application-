@@ -1,5 +1,19 @@
 # Game-House-Application-
-Implementing a simple game house application using Python socket programming. A game house is an application in which multiple clients connect to a game server, get authorized, and then select a game room to enter and play a game with another player in the same room. The game house application consists of two parts: the server program and the client program. The server program should always be running and use a welcome socket to wait for connection requests from clients. The client programs establish TCP connections with the server program. After a connection is set up, the client needs to send its user name and password to the server, and can enter the game hall after successful authentication. An authenticated user is able to query the status of the game rooms, and then pick a room to enter. To start a game, there should be exactly two players in the same room. Therefore, if the entering player is the first one in the room, the player has to wait; otherwise, the game starts. After the game has started, the server generates a random boolean value and each player is invited to guess the boolean value; the player who guesses the same as the randomly generated value is the winner, and the game results in a tie if the two players’ guesses are the same. After notifying both players the game result, the game is over and both players return to the game hall. A user may leave the system when the user is in the game hall. For now we have let the number of rooms in the game hall to be 10.
+Implementing a simple game house application using Python socket programming. 
+A game house is an application in which multiple clients connect to a game server, get authorized, and then select a game room to enter and play a game with another player in the same room. 
+The game house application consists of two parts: the server program and the client program. 
+The server program should always be running and use a welcome socket to wait for connection requests from clients.
+The client programs establish TCP connections with the server program. After a connection is set up, the client needs to send its user name and password to the server, and can enter the game hall after successful authentication. 
+An authenticated user is able to query the status of the game rooms, and then pick a room to enter. To start a game, there should be exactly two players in the same room. Therefore, if the entering player is the first one in the room, the player has to wait; otherwise, the game starts. 
+After the game has started, the server generates a random boolean value and each player is invited to guess the boolean value; the player who guesses the same as the randomly generated value is the winner, and the game results in a tie if the two players’ guesses are the same. 
+After notifying both players the game result, the game is over and both players return to the game hall. A user may leave the system when the user is in the game hall. 
+
+# Important notes for use-
+For now we have let the number of rooms in the game hall to be 10.
+
+If P1 and P2 are in a Game room and P1 loses it's connection, then P2 gets the notification after he makes the guess and the number of clients in the room ends up being 0
+
+For the locks, we are acquiring the lock before any function that modifies the shared variables. We could reduce the critical section, by acquiring the lock inside the function, but in that case the complexity would increase without significant performance improvement
 
 # How to Use-
 Python v: 3.6 In order to run the program, run the server "python3 GameServer.py [port] [UserInfo text file]" and then the client(s) "python3 GameClient.py localhost [port]" while in the source folder.

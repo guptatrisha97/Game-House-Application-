@@ -27,6 +27,7 @@ class ClientMain:
 
         while True:
             commandRun = self.command()
+            # If We need to wait for the other
             if commandRun == "3011 Wait":
                 try:
                     message = self.clientSocket.recv(1000).decode()
@@ -34,7 +35,7 @@ class ClientMain:
                 except socket.error as err:
                     print("Recv error: ", err)
                     sys.exit(1)
-            if commandRun == "":
+            if commandRun == "Wait for other player to guess":
                 try:
                     message = self.clientSocket.recv(1000).decode()
                     print(message)
