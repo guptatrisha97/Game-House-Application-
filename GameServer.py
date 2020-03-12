@@ -2,17 +2,24 @@ import socket
 import sys
 import threading
 import random
+import errno
 
 gameStates = {}
 usersInfo = {}
 numberOfRooms = 10
 playerGuess = {}
+lock = threading.Lock()
 
-# Assuming that he is not allowed to "list" while in the room
-# Test server shutting down on server side
+# Assuming that he is not allowed to "list" while in the room - Done
+# Test server shutting down on server side - Not needed
+# Test if thread is getting removed once client disconnects - Done
+# Error 54 - Done
+# Maybe need to change playerGuess coz of locks - Not needed as big critical section
+# Implement locks - Done
+# Test when client guesses and disconnects - Done
+# Thread count not working
+# What if system exits with lock not released? - sys.exit(1)
 # Test exhaustively
-# Maybe need to change playerGuess coz of locks
-# Implement locks and test, especially when you disconnect randomly w finally
 
 
 class ServerThread(threading.Thread):
@@ -22,7 +29,7 @@ class ServerThread(threading.Thread):
         # Reset roomNumber, playerGuess and GameState once the game is over
         self.roomNumber = -1
         self.otherPlayerDisconnected = False
-        #self.lock = allocate_lock()
+        self.guessed = False
         print("In Constructor ", self.addr)
 
     def run(self):
@@ -35,53 +42,60 @@ class ServerThread(threading.Thread):
                     # Checking if the player is in the game hall
                     if self.roomNumber != -1:
                         # Only if there are 2 people in the room
+                        lock.acquire()
                         if len(gameStates[self.roomNumber]) == 2:
                             if currentPlayer == gameStates[self.roomNumber][0]:
                                 otherPlayer = gameStates[self.roomNumber][1]
                             else:
                                 otherPlayer = gameStates[self.roomNumber][0]
-                            # When client 1 disconnects and client 2 gueses
-                            if len(playerGuess[self.roomNumber]) == 0:
-                                otherPlayer.otherPlayerDisconnected = True
-                            # When client 1 guesses and client 2 disconnects
-                            else:
+                            # If the other person has guessed -
+                            if otherPlayer.guessed:
                                 otherPlayer.connectionSocket.send("3021 You are the winner".encode("ascii"))
+                            # If not guessed, we wait for him to guess and then send winner, but roomNumber is -1
+                            else:
+                                otherPlayer.otherPlayerDisconnected = True
                             otherPlayer.roomNumber = -1
+                            otherPlayer.guessed = False
                         # reset the room
                         print("HI")
                         gameStates[self.roomNumber] = []
                         playerGuess[self.roomNumber] = []
+                        lock.release()
                     print("Client has disconnected")  # if no data is received, then disconnect and close the port
                     break
             except socket.error as err:
-                # What is this? Need to test
                 if isinstance(err.args, tuple):
-                    print("Recv error number: %d " % err[0])
-                    if err[0] == errno.EPIPE:
-                        print ("Detected remote disconnect")
+                    print("Recv error number:", err.errno)
+                    if err.errno == errno.EPIPE:
+                        print("Detected remote disconnect")
                         sys.exit(1)
                     else:
-                        print ("Socket error 1")
+                        print("Socket error 1 - Remote disconnect")
+                        sys.exit(1)
                 else:
-                    print ("Socket error 2 " + err.message)
+                    print("Socket error 2 " + err.message)
                     sys.exit(1)
+
             print(message)
+            print("Thread count = ", str(len(threading.enumerate())))
 
             # The current player's result will always be sent from here
             if message.startswith("/login"):
                 result = self.authentication(message)
-                self.connectionSocket.send(result.encode("ascii"))
             elif message.startswith("/list"):
-                result = "3001 " + str(numberOfRooms) + " "
-                for i in range (0, numberOfRooms):
-                    result = result + str(len(gameStates[i])) + " "
-                self.connectionSocket.send(result.encode("ascii"))
+                lock.acquire()
+                result = self.listRooms()
+                lock.release()
             elif message.startswith("/enter"):
+                lock.acquire()
                 result = self.enterRoom(message)
-                self.connectionSocket.send(result.encode("ascii"))
+                lock.release()
             elif message.startswith("/guess"):
+                lock.acquire()
                 result = self.getStatus(message)
-                self.connectionSocket.send(result.encode("ascii"))
+                lock.release()
+
+            self.connectionSocket.send(result.encode("ascii"))
 
         self.connectionSocket.close()
 
@@ -101,7 +115,7 @@ class ServerThread(threading.Thread):
         if currentGuess != "true" and currentGuess != "false":
             return "4002 Unrecognized message"
 
-        # If other player is disconnected, others have alraeady been reset, just resetting otherPlayerDisconnected
+        # If other player is disconnected, others have already been reset, just resetting otherPlayerDisconnected
         if self.otherPlayerDisconnected:
             self.otherPlayerDisconnected = False
             return resultWon
@@ -112,6 +126,7 @@ class ServerThread(threading.Thread):
 
         print(currentGuess)
         playerGuess[self.roomNumber].append(currentGuess)
+        self.guessed = True
 
         # If only 1 player has guessed till now
         if len(playerGuess[self.roomNumber]) != 2:
@@ -147,15 +162,15 @@ class ServerThread(threading.Thread):
 
         # Resetting the values and returning the result
         # The other player room number is reset earlier to prevent race conditions
+        self.guessed = False
+        otherPlayer.guessed = False
         gameStates[self.roomNumber] = []
         playerGuess[self.roomNumber] = []
         self.roomNumber = -1
         return result
 
     def enterRoom(self, message):
-        # Check if invalid char or nothing is inputted
-        message = message.split(" ")[1]
-
+        message = message.split(" ")
         # Incorrect format, not 2 parameters
         if len(message) != 2:
             return "4002 Unrecognized message"
@@ -191,6 +206,15 @@ class ServerThread(threading.Thread):
             return "1001 Authentication successful"
         else:
             return "1002 Authentication failed"
+
+    def listRooms(self):
+        if self.roomNumber != -1 or self.otherPlayerDisconnected:
+            return "4002 Unrecognized message"
+        else:
+            result = "3001 " + str(numberOfRooms) + " "
+            for i in range(0, numberOfRooms):
+                result = result + str(len(gameStates[i])) + " "
+            return result
 
 
 class ServerMain:
