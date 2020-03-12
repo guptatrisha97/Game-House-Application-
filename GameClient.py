@@ -27,7 +27,7 @@ class ClientMain:
 
         while True:
             commandRun = self.command()
-            # If We need to wait for the other
+            # If We need to wait for the other person to join the room
             if commandRun == "3011 Wait":
                 try:
                     message = self.clientSocket.recv(1000).decode()
@@ -35,6 +35,7 @@ class ClientMain:
                 except socket.error as err:
                     print("Recv error: ", err)
                     sys.exit(1)
+            # If we need to wait for the other player to guess
             if commandRun == "Wait for other player to guess":
                 try:
                     message = self.clientSocket.recv(1000).decode()
@@ -42,7 +43,7 @@ class ClientMain:
                 except socket.error as err:
                     print("Recv error: ", err)
                     sys.exit(1)
-            # if server shut down, disconnect the client also
+            # If server shut down, disconnect the client also
             if len(commandRun) == 0:
                 print("Server connection lost...Disconnecting!")
                 sys.exit(1)
